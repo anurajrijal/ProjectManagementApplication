@@ -7,6 +7,7 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import mongoose, { Mongoose } from "mongoose";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
+import { pipeline } from "stream";
 
 const getTasks = asyncHandler(async (requestAnimationFrame, res) => {
   const { projectId } = req.params;
@@ -19,7 +20,7 @@ const getTasks = asyncHandler(async (requestAnimationFrame, res) => {
   }).populate("assignedTo", "avatar username fullName");
 
 
-  retrun res 
+  return res 
   .status(201).json(
     new ApiResponse(201,tasks,"Task fetched successfully")
   )
@@ -57,7 +58,71 @@ const createTask = asyncHandler(async (requestAnimationFrame, res) => {
     .json(new ApiResponse(201, "Task created successfully"));
 });
 const getTasksById = asyncHandler(async (requestAnimationFrame, res) => {
-  //test
+  const {taskId}= req.params
+  const task= await Task.aggregate([
+    {
+        $match: {
+            _id: new mongoose.Types.ObjectId(taskId)
+        }
+    },
+    {
+        $lookup:{
+            from:"users",
+            localField:"assignedTo",
+            foreignField:"_id",
+            as:"assignedTo",
+            pipeline:[{
+                _id: 1,
+                username:1,
+                fullName:1,
+                avatar:1
+            }]
+        }
+    },{
+        $lookeup:{
+            form :"subtasks",
+            localField:"_id",
+            foreignField:"task",
+            as:"subtasks",
+            pipeline:[{
+                $lookeup:{
+                    from:"users",
+                    localField:"createdBy",
+                    foreignField:"_id",
+                    as:"createdBy",
+                    pipeline:[{
+                        $project:{
+                            _id:1,
+                            username:1,
+                            fullName:1,
+                            avatar:1
+                        }
+                    }]
+                }
+            },{
+                $addFields:{
+                    createdBy:{
+                        $arrayElemAt;["$createdBy",0]
+                    }
+                }
+            }
+        ]
+        }
+        
+    },{
+        $addFields:{
+            assignedTo:{
+                $arrayElemAt:["$assignedTo",0]
+            }
+
+        }
+    }
+  ]);
+  if(!task || task.length ===0){
+    throw new ApiError(404, "Task not found");
+  }
+  return res.status(200).json(new ApiResponse(200,task[0],"task fetched successfully"))
+
 });
 const updateTasks = asyncHandler(async (requestAnimationFrame, res) => {
   //test
