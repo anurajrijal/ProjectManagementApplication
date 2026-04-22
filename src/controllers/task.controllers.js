@@ -9,7 +9,20 @@ import mongoose, { Mongoose } from "mongoose";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
 const getTasks = asyncHandler(async (requestAnimationFrame, res) => {
-  //test
+  const { projectId } = req.params;
+  const project = await Project.findById(projectId);
+  if (!projectId) {
+    throw new ApiError(404, "Project not found");
+  }
+  const tasks = await Task.find({
+    project: new mongoose.Types.ObjectId(projectId),
+  }).populate("assignedTo", "avatar username fullName");
+
+
+  retrun res 
+  .status(201).json(
+    new ApiResponse(201,tasks,"Task fetched successfully")
+  )
 });
 
 const createTask = asyncHandler(async (requestAnimationFrame, res) => {
@@ -29,19 +42,19 @@ const createTask = asyncHandler(async (requestAnimationFrame, res) => {
     };
   });
 
-
-  const task= await Task.create({
+  const task = await Task.create({
     title,
     description,
     project: new mongoose.Types.ObjectId(projectId),
-    assignedTo:assignedTo? new mongoose.Types.ObjectId(assignedTo) : undefined,
+    assignedTo: assignedTo
+      ? new mongoose.Types.ObjectId(assignedTo)
+      : undefined,
     status,
-    assignedBy: new mongoose.Types.ObjectId(req.user._id) 
+    assignedBy: new mongoose.Types.ObjectId(req.user._id),
   });
-  return res 
-  .status(201).json(
-    new ApiResponse(201,"Task created successfully")
-  )
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Task created successfully"));
 });
 const getTasksById = asyncHandler(async (requestAnimationFrame, res) => {
   //test
